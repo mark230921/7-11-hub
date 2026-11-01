@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -479,8 +478,6 @@ class="fixed bottom-6 right-6 px-4 py-2.5 rounded-xl bg-zinc-900 text-white text
 const SUPABASE_URL = "https://ujagfqjwgzmfdbdmbven.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqYWdmcWp3Z3ptZmRiZG1idmVuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM0NDgxMDEsImV4cCI6MjEwOTAyNDEwMX0.mJVinPVq9zvQcZYsAKDtDX2BRjuZCOUYvTj-JMTZPv8";
 
-// Use the email of the admin account created in Supabase.
-// The password is entered in the login modal.
 const ADMIN_EMAIL = "markabeleda14@gmail.com";
 
 const BUCKET = "hub-files";
@@ -630,7 +627,7 @@ async function verifyAdminLogin() {
 
     } catch (err) {
         error.textContent = err.message || "Login failed.";
-        error.classList.remove("hidden");
+        error.classList.add("hidden");
     } finally {
         button.disabled = false;
         button.textContent = "Login";
@@ -653,7 +650,6 @@ async function logoutAdmin() {
     showToast("Logged out successfully");
 }
 
-// Set this to the SAME UUID used in the SQL policies.
 const ADMIN_USER_ID = "098a6072-9b11-409a-af01-b842fbfcb6b5";
 
 // ============================================
@@ -727,14 +723,34 @@ function safeId(value) {
     return /^[0-9a-f-]{36}$/i.test(value);
 }
 
-function getSvgIcon(ext) {
+// UPDATED: Displays image thumbnails for photos and a clean professional app logo for APKs
+function getFileIcon(file) {
+    const ext = (file.file_type || "").toLowerCase();
+    const imageExtensions = ["jpg", "jpeg", "png", "webp", "gif", "svg"];
+
+    // If it's an image file, load and display its original thumbnail preview
+    if (imageExtensions.includes(ext)) {
+        const { data } = db.storage.from(BUCKET).getPublicUrl(file.storage_path);
+        return `<img src="${data.publicUrl}" alt="${escapeHtml(file.name)}" class="w-full h-full object-cover" />`;
+    }
+
+    // If it's an APK or Android app file, display a professional mobile app package icon logo
+    if (["apk", "app"].includes(ext)) {
+        return `
+        <svg class="w-5 h-5 text-emerald-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+            <path d="M12 18h.01"></path>
+            <path d="M10 6h4"></path>
+        </svg>`;
+    }
+
+    // Fallback icons for other file types
     let symbol = "📄";
 
-    if (["apk", "app", "exe"].includes(ext)) symbol = "📱";
     if (["pdf"].includes(ext)) symbol = "📕";
     if (["zip", "rar", "7z", "tar", "gz"].includes(ext)) symbol = "📦";
-    if (["jpg", "jpeg", "png", "svg", "webp", "gif"].includes(ext)) symbol = "🖼️";
     if (["doc", "docx", "txt"].includes(ext)) symbol = "📝";
+    if (["exe"].includes(ext)) symbol = "⚙️";
 
     return `<span class="text-base">${symbol}</span>`;
 }
@@ -810,7 +826,6 @@ async function uploadSingleFile(file) {
     let storagePath = null;
 
     try {
-        // Confirm the authenticated admin session.
         const { data: sessionData, error: sessionError } =
             await db.auth.getSession();
 
@@ -819,7 +834,6 @@ async function uploadSingleFile(file) {
             throw new Error("Admin authorization required");
         }
 
-        // Use a unique storage path to avoid filename conflicts.
         const cleanName = file.name
             .replace(/[^a-zA-Z0-9._-]/g, "_")
             .slice(0, 180);
@@ -828,7 +842,6 @@ async function uploadSingleFile(file) {
             ADMIN_USER_ID + "/" +
             crypto.randomUUID() + "_" + cleanName;
 
-        // Upload to Supabase Storage.
         const { error: storageError } = await db.storage
             .from(BUCKET)
             .upload(storagePath, file, {
@@ -842,7 +855,6 @@ async function uploadSingleFile(file) {
         percent.textContent = "75%";
         bar.style.width = "75%";
 
-        // Save file information to database.
         const { error: insertError } = await db
             .from(TABLE)
             .insert({
@@ -865,7 +877,6 @@ async function uploadSingleFile(file) {
     } catch (err) {
         console.error(err);
 
-        // Roll back uploaded object if database insertion failed.
         if (storagePath) {
             await db.storage.from(BUCKET).remove([storagePath]);
         }
@@ -999,7 +1010,6 @@ async function deleteFile(id) {
     }
 
     try {
-        // Verify admin session
         const { data: sessionData, error: sessionError } =
             await db.auth.getSession();
 
@@ -1010,7 +1020,6 @@ async function deleteFile(id) {
             throw new Error("Admin authorization required");
         }
 
-        // Step 1: Delete actual file from Storage
         const { error: storageError } = await db.storage
             .from(BUCKET)
             .remove([file.storage_path]);
@@ -1021,7 +1030,6 @@ async function deleteFile(id) {
             );
         }
 
-        // Step 2: Delete database record
         const { error: dbError } = await db
             .from(TABLE)
             .delete()
@@ -1033,14 +1041,12 @@ async function deleteFile(id) {
             );
         }
 
-        // Refresh file list
         await loadFiles();
 
         showToast("File deleted successfully");
 
     } catch (err) {
         console.error("DELETE ERROR:", err);
-
         showToast(err.message || "Unable to delete file");
     }
 }
@@ -1079,8 +1085,8 @@ function renderFileList() {
 
             <div class="flex items-center gap-3 min-w-0">
 
-                <div class="w-9 h-9 rounded-lg bg-zinc-100 flex items-center justify-center flex-shrink-0">
-                    ${getSvgIcon(file.file_type || "file")}
+                <div class="w-9 h-9 rounded-lg bg-zinc-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    ${getFileIcon(file)}
                 </div>
 
                 <div class="min-w-0">
@@ -1125,7 +1131,6 @@ text-white rounded-lg text-xs font-semibold
 shadow-sm hover:shadow-md transition-all"
 title="Download File">
 
-    <!-- Download Icon -->
     <svg xmlns="http://www.w3.org/2000/svg"
     width="16" height="16"
     viewBox="0 0 24 24"
@@ -1144,14 +1149,13 @@ title="Download File">
     <span>Download</span>
 
 </button>
+
             </div>
         </div>
         `;
     }).join("");
 }
 
-// Use delegated event handling rather than inserting executable
-// JavaScript into filenames or database values.
 document.getElementById("fileList").addEventListener("click", event => {
     const button = event.target.closest("button[data-action]");
     if (!button) return;
@@ -1252,27 +1256,18 @@ dropZone.addEventListener("drop", event => {
 async function initializeApp() {
     if (!db) return;
 
-    // Always start in Public Mode.
     isAdmin = false;
-
     updateAdminUI();
-
-    // Load available files.
     await loadFiles();
-
-    // Enable live updates.
     subscribeToFiles();
 
-    // Monitor login and logout.
     db.auth.onAuthStateChange((event, session) => {
-
         const authorized = !!(
             session &&
             session.user.id === ADMIN_USER_ID
         );
 
         isAdmin = authorized;
-
         updateAdminUI();
 
         if (event === "SIGNED_IN" && authorized) {
