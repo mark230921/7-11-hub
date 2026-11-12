@@ -1,0 +1,1781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>7-Eleven Hub</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+    --green: #087443;
+    --green-dark: #075c36;
+    --green-light: #e8f5ee;
+    --background: #f5f7f5;
+    --surface: #ffffff;
+    --text: #202923;
+    --muted: #87918a;
+    --border: #e7ece8;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background: var(--background) !important;
+    color: var(--text);
+}
+
+::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #cbd5ce;
+    border-radius: 99px;
+}
+
+button {
+    transition: all .2s ease;
+}
+
+button:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+/* HEADER */
+header {
+    background: white !important;
+    border-bottom: 1px solid var(--border) !important;
+    box-shadow: 0 2px 12px rgba(20, 50, 30, .035);
+}
+
+header > div:first-child span {
+    color: var(--green-dark);
+    letter-spacing: -.5px;
+}
+
+/* MAIN CONTENT */
+main {
+    padding-top: 26px !important;
+    padding-bottom: 26px !important;
+}
+
+/* SECTION HEADINGS */
+main h2 {
+    color: var(--muted);
+    letter-spacing: 1.2px;
+}
+
+/* UPLOAD PANEL */
+#uploadSection {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: 0 3px 14px rgba(20, 50, 30, .035);
+}
+
+#dropZone {
+    background: #f8fbf9 !important;
+    border: 2px dashed #b9d6c4 !important;
+    border-radius: 15px !important;
+    padding: 30px 15px !important;
+}
+
+#dropZone:hover {
+    background: var(--green-light) !important;
+    border-color: var(--green) !important;
+}
+
+#dropZone .w-9 {
+    color: white;
+    background: var(--green) !important;
+    border: none !important;
+}
+
+/* UPLOAD PROGRESS */
+#uploadStatus {
+    background: #f8fbf9 !important;
+    border-color: var(--border) !important;
+}
+
+#uploadProgressBar {
+    background: var(--green) !important;
+}
+
+/* FILE HEADER */
+#fileCount {
+    color: var(--muted);
+}
+
+#searchInput {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    padding: 10px 13px;
+    transition: .2s;
+}
+
+#searchInput:focus {
+    border-color: var(--green);
+    box-shadow: 0 0 0 3px rgba(8, 116, 67, .08);
+}
+
+/* FILE LIST CONTAINER */
+main > div:last-child {
+    background: white;
+    border: 1px solid var(--border) !important;
+    border-radius: 16px;
+    padding: 5px 12px;
+    box-shadow: 0 3px 14px rgba(20, 50, 30, .025);
+}
+
+/* INDIVIDUAL FILE ROWS */
+#fileList > div {
+    padding: 14px 8px !important;
+    border-radius: 10px;
+    transition: background .2s;
+}
+
+#fileList > div:hover {
+    background: #f5faf6 !important;
+}
+
+#fileList .w-9 {
+    background: var(--green-light) !important;
+}
+
+/* FILE ACTION BUTTONS */
+#fileList button {
+    border-radius: 9px;
+    min-width: 34px;
+    min-height: 34px;
+}
+
+#fileList button:hover {
+    background: var(--green-light) !important;
+    color: var(--green-dark) !important;
+}
+
+#fileList button[data-action="delete"]:hover {
+    background: #fff0f0 !important;
+    color: #dc2626 !important;
+}
+
+/* ADMIN LOGIN BUTTON */
+#adminAuthBtn {
+    border: 1px solid #cbded1 !important;
+    color: var(--green-dark) !important;
+    background: white;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+#adminAuthBtn:hover {
+    background: var(--green-light);
+    border-color: var(--green) !important;
+}
+
+/* ============================================
+   SHARED MODAL SYSTEM
+   ============================================ */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(7, 40, 24, .45);
+    -webkit-backdrop-filter: blur(5px);
+    backdrop-filter: blur(5px);
+}
+
+.modal-overlay.is-open {
+    display: flex;
+    animation: modalFade .2s ease;
+}
+
+.modal-card {
+    position: relative;
+    width: 100%;
+    max-width: 380px;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    padding: 26px 22px 20px;
+    box-shadow: 0 24px 60px rgba(7, 40, 24, .22);
+}
+
+.modal-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 22px;
+    right: 22px;
+    height: 3px;
+    border-radius: 0 0 99px 99px;
+    background: var(--green);
+}
+
+.modal-overlay.is-open .modal-card {
+    animation: modalPop .26s cubic-bezier(.2, .9, .3, 1.2);
+}
+
+@keyframes modalFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes modalPop {
+    from { opacity: 0; transform: translateY(14px) scale(.96); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.modal-icon {
+    width: 50px;
+    height: 50px;
+    margin: 0 auto 14px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--green-light);
+    color: var(--green);
+}
+
+.modal-icon.danger  { background: #fff0f0; color: #dc2626; }
+.modal-icon.warning { background: #fff7e6; color: #b7791f; }
+
+.modal-icon svg { width: 24px; height: 24px; }
+
+.modal-title {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -.2px;
+    color: var(--green-dark);
+    text-align: center;
+}
+
+.modal-text {
+    margin-top: 6px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--muted);
+    text-align: center;
+}
+
+.modal-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.modal-close:hover { background: var(--green-light); color: var(--green-dark); }
+
+.modal-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.modal-input {
+    width: 100%;
+    padding: 11px 13px;
+    font-size: 13px;
+    color: var(--text);
+    background: #f8fbf9;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    outline: none;
+    transition: .2s;
+}
+
+.modal-input:focus {
+    background: white;
+    border-color: var(--green);
+    box-shadow: 0 0 0 3px rgba(8, 116, 67, .1);
+}
+
+.modal-error {
+    margin-top: 8px;
+    font-size: 11px;
+    color: #dc2626;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.modal-actions > button { flex: 1; }
+
+.btn {
+    padding: 11px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 11px;
+    border: 1px solid transparent;
+    cursor: pointer;
+}
+
+.btn-primary { background: var(--green); color: white; }
+.btn-primary:hover:not(:disabled) { background: var(--green-dark); box-shadow: 0 4px 12px rgba(8, 116, 67, .25); }
+
+.btn-secondary { background: white; color: var(--green-dark); border-color: #cbded1; }
+.btn-secondary:hover { background: var(--green-light); border-color: var(--green); }
+
+.btn-danger { background: #dc2626; color: white; }
+.btn-danger:hover { background: #b91c1c; }
+
+/* INSTALL STEPS */
+.file-chip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 16px;
+    padding: 10px 12px;
+    background: #f8fbf9;
+    border: 1px solid var(--border);
+    border-radius: 13px;
+}
+
+.file-chip .chip-icon {
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: var(--green-light);
+    color: var(--green);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.file-chip .chip-icon svg { width: 18px; height: 18px; }
+
+.install-steps {
+    list-style: none;
+    margin: 16px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.install-steps li {
+    display: flex;
+    gap: 11px;
+    align-items: flex-start;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text);
+}
+
+.install-steps .step-num {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 99px;
+    background: var(--green);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.install-steps small { display: block; color: var(--muted); font-size: 11px; margin-top: 1px; }
+
+.install-note {
+    margin-top: 16px;
+    padding: 10px 12px;
+    border-radius: 11px;
+    background: #fff7e6;
+    border: 1px solid #f3e0b5;
+    color: #8a5a0b;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+/* TOAST */
+#toast {
+    background: var(--green-dark) !important;
+    border-radius: 12px;
+    z-index: 60 !important;
+}
+
+/* FIXED LAYOUT: header + footer stay put, only the file list scrolls */
+html {
+    height: 100%;
+}
+
+body {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0 !important;
+    overflow: hidden !important;
+}
+
+main {
+    min-height: 0;
+    overflow-y: auto; /* fallback only if the screen is very short */
+}
+
+main > div:last-child {
+    min-height: 200px;
+    overflow-y: auto;
+}
+
+footer {
+    flex-shrink: 0;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+/* FOOTER */
+footer {
+    background: white !important;
+    border-top: 1px solid var(--border) !important;
+    color: var(--muted) !important;
+}
+
+/* EMPTY STATE */
+#emptyState {
+    color: var(--muted);
+}
+
+/* MOBILE RESPONSIVENESS */
+@media (max-width: 480px) {
+    main {
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+    }
+
+    header {
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+    }
+
+    #searchInput {
+        font-size: 11px;
+    }
+
+    #fileList > div {
+        gap: 6px !important;
+    }
+
+    #fileList button {
+        min-width: 30px;
+        min-height: 30px;
+        padding: 6px !important;
+    }
+
+    #uploadSection {
+        padding: 13px;
+    }
+}
+</style>
+</head>
+
+<body class="min-h-screen flex flex-col overflow-x-hidden">
+<!-- HEADER -->
+<header class="w-full max-w-3xl mx-auto px-6 py-4 border-b border-zinc-100 flex-shrink-0 z-40 bg-white sticky top-0">
+
+    <!-- FIRST LINE: CENTERED TITLE -->
+    <div class="text-center mb-3">
+<span class="font-extrabold text-lg tracking-tight" style="color:#075c36;">
+    7-Eleven Portal
+</span>
+    </div>
+
+    <!-- SECOND LINE: ROLE AND ADMIN BUTTON -->
+    <div class="flex items-center justify-between gap-2">
+
+        <span id="roleBadge"
+        class="text-[10px] font-semibold uppercase px-2 py-1 rounded-full bg-zinc-100 text-zinc-500">
+            Public Mode
+        </span>
+
+        <div class="flex items-center gap-2">
+
+            <span id="connectionStatus"
+            class="text-[10px] text-zinc-400">
+                Connecting...
+            </span>
+
+            <button id="adminAuthBtn" onclick="toggleAdminAuth()"
+            class="text-xs text-zinc-600 font-medium px-3 py-1.5 rounded-lg border border-zinc-200 hover:border-zinc-400 transition whitespace-nowrap">
+                <span id="adminBtnText">Admin Login</span>
+            </button>
+
+        </div>
+
+    </div>
+
+</header>
+
+<!-- MAIN -->
+<main class="w-full max-w-3xl mx-auto px-6 py-4 flex-grow flex flex-col min-h-0">
+
+    <!-- ADMIN UPLOAD -->
+    <section id="uploadSection" class="hidden space-y-3 mb-5 flex-shrink-0">
+
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+            Admin Upload Panel
+        </h2>
+
+        <div id="dropZone"
+        onclick="document.getElementById('fileInput').click()"
+        class="group border border-dashed border-zinc-300 hover:border-zinc-500 rounded-2xl p-6 text-center cursor-pointer bg-zinc-50/50 hover:bg-zinc-50 transition">
+
+            <input type="file" id="fileInput" multiple
+            onchange="handleFileSelect(event)" class="hidden">
+
+            <div class="w-9 h-9 rounded-full bg-white border border-zinc-200 flex items-center justify-center mx-auto mb-2">
+                <span class="text-xl">+</span>
+            </div>
+
+            <p class="text-xs font-medium text-zinc-800">
+                Drop files here or
+                <span class="underline">browse</span>
+            </p>
+
+            <p class="text-[11px] text-zinc-400 mt-1">
+                APKs, Apps, PDFs, ZIPs and Documents
+            </p>
+
+            <p class="text-[10px] text-zinc-400 mt-1">
+                Maximum file size: 50 MB per file
+            </p>
+        </div>
+
+        <!-- UPLOAD STATUS -->
+        <div id="uploadStatus"
+        class="hidden p-3 rounded-xl border border-zinc-100 bg-zinc-50">
+
+            <div class="flex justify-between text-xs text-zinc-600 mb-2">
+                <span id="uploadFileName" class="truncate max-w-[220px]">
+                    Uploading...
+                </span>
+                <span id="uploadPercent">0%</span>
+            </div>
+
+            <div class="h-1 bg-zinc-200 rounded-full overflow-hidden">
+                <div id="uploadProgressBar"
+                class="h-full bg-zinc-900 w-0 transition-all"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FILE HEADER -->
+    <div class="flex items-center justify-between gap-4 pb-3 flex-shrink-0">
+
+        <div>
+            <h2 class="text-xs font-medium uppercase tracking-wider text-zinc-400">
+                Available Downloads
+            </h2>
+            <p id="fileCount" class="text-[10px] text-zinc-400 mt-1">
+                Loading files...
+            </p>
+        </div>
+
+        <div class="relative w-48 sm:w-64">
+            <input type="text" id="searchInput"
+            oninput="renderFileList()"
+            placeholder="Search files or apps..."
+            class="w-full px-3 py-2 rounded-lg border border-zinc-200 text-xs focus:outline-none focus:border-zinc-400">
+        </div>
+    </div>
+
+    <!-- FILE LIST -->
+    <div class="flex-grow overflow-y-auto pr-1 min-h-[200px] border-t border-b border-zinc-100">
+
+        <div id="fileList" class="divide-y divide-zinc-100"></div>
+
+        <div id="emptyState"
+        class="hidden py-12 text-center text-xs text-zinc-400">
+            No matching files found.
+        </div>
+    </div>
+</main>
+
+<!-- LOGIN MODAL -->
+<div id="loginModal" class="modal-overlay" onclick="if(event.target===this) closeLoginModal()">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+
+        <button class="modal-close" onclick="closeLoginModal()" aria-label="Close">×</button>
+
+        <div class="modal-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+        </div>
+
+        <h3 id="loginTitle" class="modal-title">Admin Portal Login</h3>
+        <p class="modal-text">Sign in to upload and manage files.</p>
+
+        <div style="margin-top:18px">
+            <label class="modal-label" for="adminPasswordInput">Admin Password</label>
+
+            <input type="password" id="adminPasswordInput"
+            inputmode="numeric" autocomplete="current-password"
+            placeholder="Enter numeric password"
+            onkeydown="if(event.key==='Enter') verifyAdminLogin()"
+            class="modal-input">
+
+            <p id="loginError" class="modal-error hidden"></p>
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeLoginModal()">Cancel</button>
+            <button id="loginButton" class="btn btn-primary" onclick="verifyAdminLogin()">Login</button>
+        </div>
+    </div>
+</div>
+
+<!-- WELCOME MODAL -->
+<div id="welcomeModal" class="modal-overlay is-open">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle">
+
+        <div class="modal-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 9l1.5-5h15L21 9"/>
+                <path d="M4 9v11h16V9"/>
+                <path d="M3 9h18"/>
+                <path d="M9 20v-6h6v6"/>
+            </svg>
+        </div>
+
+        <h3 id="welcomeTitle" class="modal-title">Welcome to 7-Eleven Hub</h3>
+
+        <p class="modal-text">
+            Philippine Seven Corp. has no involvement with any of the files, apps, and website. This website is only a prototype that might help 7-Eleven employees.
+        </p>
+
+        <p class="modal-text" style="margin-top:12px; font-weight:600;">
+            •This website was created by Mark Jake•
+        </p>
+
+        <div class="modal-actions">
+            <button class="btn btn-primary" onclick="dismissWelcomeModal()">Continue</button>
+        </div>
+    </div>
+</div>
+
+<!-- CONFIRM / PROMPT DIALOG (replaces native confirm() and prompt()) -->
+<div id="dialogModal" class="modal-overlay" onclick="if(event.target===this) resolveDialog(null)">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="dialogTitle">
+
+        <div id="dialogIcon" class="modal-icon"></div>
+
+        <h3 id="dialogTitle" class="modal-title"></h3>
+        <p id="dialogMessage" class="modal-text"></p>
+
+        <div id="dialogInputWrap" class="hidden" style="margin-top:16px">
+            <label id="dialogInputLabel" class="modal-label" for="dialogInput"></label>
+            <input type="text" id="dialogInput" class="modal-input" autocomplete="off"
+            onkeydown="if(event.key==='Enter') resolveDialog(true)">
+        </div>
+
+        <div class="modal-actions">
+            <button id="dialogCancel" class="btn btn-secondary" onclick="resolveDialog(null)">Cancel</button>
+            <button id="dialogConfirm" class="btn btn-primary" onclick="resolveDialog(true)">OK</button>
+        </div>
+    </div>
+</div>
+
+<!-- INSTALL APP MODAL (shown after a successful app download) -->
+<div id="installModal" class="modal-overlay" onclick="if(event.target===this) closeInstallModal()">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="installTitle">
+
+        <button class="modal-close" onclick="closeInstallModal()" aria-label="Close">×</button>
+
+        <div id="installIcon" class="modal-icon"></div>
+
+        <h3 id="installTitle" class="modal-title"></h3>
+        <p id="installSubtitle" class="modal-text"></p>
+
+        <div class="file-chip">
+            <div class="chip-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                    <path d="M12 18h.01"/>
+                </svg>
+            </div>
+            <div style="min-width:0">
+                <p id="installFileName" class="text-xs font-semibold truncate" style="color:var(--text)"></p>
+                <p id="installFileMeta" style="font-size:11px;color:var(--muted)"></p>
+            </div>
+        </div>
+
+        <ol id="installSteps" class="install-steps"></ol>
+
+        <div id="installNote" class="install-note hidden"></div>
+
+        <div class="modal-actions">
+            <button id="installCopyBtn" class="btn btn-secondary" onclick="copyInstallLink()">Copy Link</button>
+            <button class="btn btn-primary" onclick="closeInstallModal()">Done</button>
+        </div>
+    </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"
+class="fixed bottom-6 right-6 px-4 py-2.5 rounded-xl bg-zinc-900 text-white text-xs shadow-lg opacity-0 translate-y-10 transition-all pointer-events-none z-50">
+    <span id="toastMessage">Action completed</span>
+</div>
+
+<!-- FOOTER -->
+<footer class="w-full max-w-3xl mx-auto px-6 py-3 text-center text-xs text-zinc-400 border-t border-zinc-100 bg-white">
+    •This website was created by Mark Jake•
+</footer>
+
+<script>
+// ============================================
+// SUPABASE CONFIGURATION
+// ============================================
+
+const SUPABASE_URL = "https://ujagfqjwgzmfdbdmbven.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqYWdmcWp3Z3ptZmRiZG1idmVuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM0NDgxMDEsImV4cCI6MjEwOTAyNDEwMX0.mJVinPVq9zvQcZYsAKDtDX2BRjuZCOUYvTj-JMTZPv8";
+
+const ADMIN_EMAIL = "markabeleda14@gmail.com";
+
+const BUCKET = "hub-files";
+const TABLE = "shared_files";
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
+
+const configReady =
+    SUPABASE_URL.startsWith("https://") &&
+    !SUPABASE_URL.includes("YOUR_") &&
+    !SUPABASE_ANON_KEY.includes("YOUR_") &&
+    !ADMIN_EMAIL.includes("YOUR_");
+
+if (!configReady) {
+    document.getElementById("connectionStatus").textContent =
+        "Configuration required";
+    showToast("Please configure your Supabase settings");
+}
+
+const db = configReady
+    ? window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY,
+        {
+            auth: {
+                persistSession: false,
+                autoRefreshToken: true,
+                detectSessionInUrl: false
+            }
+        }
+      )
+    : null;
+
+// ============================================
+// APPLICATION STATE
+// ============================================
+
+let isAdmin = false;
+let sharedFiles = [];
+let realtimeChannel = null;
+let uploadRunning = false;
+
+// ============================================
+// WELCOME MODAL
+// ============================================
+
+function openModal(id) {
+    document.getElementById(id).classList.add("is-open");
+}
+
+function closeModal(id) {
+    document.getElementById(id).classList.remove("is-open");
+}
+
+function dismissWelcomeModal() {
+    closeModal("welcomeModal");
+}
+
+// Close the top-most open modal with Escape
+document.addEventListener("keydown", event => {
+    if (event.key !== "Escape") return;
+
+    if (document.getElementById("dialogModal").classList.contains("is-open")) {
+        resolveDialog(null);
+    } else if (document.getElementById("installModal").classList.contains("is-open")) {
+        closeInstallModal();
+    } else if (document.getElementById("loginModal").classList.contains("is-open")) {
+        closeLoginModal();
+    }
+});
+
+// ============================================
+// CONFIRM / PROMPT DIALOG
+// (themed replacement for window.confirm / window.prompt)
+// ============================================
+
+const DIALOG_ICONS = {
+    danger: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>',
+    edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>'
+};
+
+let dialogResolver = null;
+let dialogHasInput = false;
+
+function showDialog({ title, message = "", icon = "edit", confirmText = "OK",
+                      cancelText = "Cancel", danger = false,
+                      inputLabel = null, inputValue = "" }) {
+
+    // settle any dialog that is still open
+    if (dialogResolver) resolveDialog(null);
+
+    const icon_el = document.getElementById("dialogIcon");
+    icon_el.className = "modal-icon" + (danger ? " danger" : "");
+    icon_el.innerHTML = DIALOG_ICONS[icon] || DIALOG_ICONS.edit;
+
+    document.getElementById("dialogTitle").textContent = title;
+
+    const msg = document.getElementById("dialogMessage");
+    msg.textContent = message;
+    msg.classList.toggle("hidden", !message);
+
+    dialogHasInput = inputLabel !== null;
+    const wrap = document.getElementById("dialogInputWrap");
+    const input = document.getElementById("dialogInput");
+    wrap.classList.toggle("hidden", !dialogHasInput);
+
+    if (dialogHasInput) {
+        document.getElementById("dialogInputLabel").textContent = inputLabel;
+        input.value = inputValue;
+    }
+
+    document.getElementById("dialogCancel").textContent = cancelText;
+
+    const confirmBtn = document.getElementById("dialogConfirm");
+    confirmBtn.textContent = confirmText;
+    confirmBtn.className = "btn " + (danger ? "btn-danger" : "btn-primary");
+
+    openModal("dialogModal");
+
+    if (dialogHasInput) {
+        setTimeout(() => { input.focus(); input.select(); }, 80);
+    }
+
+    return new Promise(resolve => { dialogResolver = resolve; });
+}
+
+// value: true = confirmed, null = cancelled
+function resolveDialog(value) {
+    if (!dialogResolver) { closeModal("dialogModal"); return; }
+
+    const resolve = dialogResolver;
+    dialogResolver = null;
+
+    closeModal("dialogModal");
+
+    if (value === true && dialogHasInput) {
+        resolve(document.getElementById("dialogInput").value);
+    } else {
+        resolve(value === true ? true : (dialogHasInput ? null : false));
+    }
+}
+
+// ============================================
+// TOAST
+// ============================================
+
+let toastTimer;
+
+function showToast(message) {
+    const toast = document.getElementById("toast");
+
+    document.getElementById("toastMessage").textContent = message;
+
+    toast.classList.remove("opacity-0", "translate-y-10");
+
+    clearTimeout(toastTimer);
+
+    toastTimer = setTimeout(() => {
+        toast.classList.add("opacity-0", "translate-y-10");
+    }, 2800);
+}
+
+// ============================================
+// ADMIN LOGIN / LOGOUT
+// ============================================
+
+function toggleAdminAuth() {
+    if (isAdmin) {
+        logoutAdmin();
+    } else {
+        openLoginModal();
+    }
+}
+
+function openLoginModal() {
+    if (!db) {
+        showToast("Supabase configuration required");
+        return;
+    }
+
+    openModal("loginModal");
+
+    document.getElementById("adminPasswordInput").value = "";
+    document.getElementById("loginError").classList.add("hidden");
+
+    setTimeout(() => {
+        document.getElementById("adminPasswordInput").focus();
+    }, 100);
+}
+
+function closeLoginModal() {
+    closeModal("loginModal");
+}
+
+async function verifyAdminLogin() {
+    if (!db) return;
+
+    const password =
+        document.getElementById("adminPasswordInput").value;
+
+    const error = document.getElementById("loginError");
+    const button = document.getElementById("loginButton");
+
+    if (!password) {
+        error.textContent = "Please enter your password.";
+        error.classList.remove("hidden");
+        return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Logging in...";
+    error.classList.add("hidden");
+
+    try {
+        const { data, error: authError } =
+            await db.auth.signInWithPassword({
+                email: ADMIN_EMAIL,
+                password: password
+            });
+
+        if (authError) throw authError;
+
+        if (!data.user || data.user.id !== ADMIN_USER_ID) {
+            await db.auth.signOut();
+            throw new Error("This account is not authorized as admin.");
+        }
+
+        isAdmin = true;
+
+        closeLoginModal();
+        updateAdminUI();
+
+        showToast("Admin login successful");
+
+    } catch (err) {
+        error.textContent = err.message || "Login failed.";
+        error.classList.remove("hidden");
+    } finally {
+        button.disabled = false;
+        button.textContent = "Login";
+    }
+}
+
+async function logoutAdmin() {
+    if (!db) return;
+
+    const { error } = await db.auth.signOut();
+
+    if (error) {
+        showToast("Logout failed");
+        return;
+    }
+
+    isAdmin = false;
+    updateAdminUI();
+
+    showToast("Logged out successfully");
+}
+
+const ADMIN_USER_ID = "098a6072-9b11-409a-af01-b842fbfcb6b5";
+
+// ============================================
+// ADMIN INTERFACE
+// ============================================
+
+function updateAdminUI() {
+    const uploadSection = document.getElementById("uploadSection");
+    const badge = document.getElementById("roleBadge");
+    const button = document.getElementById("adminBtnText");
+
+    if (isAdmin) {
+        uploadSection.classList.remove("hidden");
+
+        button.textContent = "Admin Logout";
+
+        badge.textContent = "Admin Mode";
+        badge.className =
+            "ml-2 text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700";
+    } else {
+        uploadSection.classList.add("hidden");
+
+        button.textContent = "Admin Login";
+
+        badge.textContent = "Public Mode";
+        badge.className =
+            "ml-2 text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-500";
+    }
+
+    renderFileList();
+}
+
+// ============================================
+// FILE HELPERS
+// ============================================
+
+function getFileExtension(filename) {
+    const parts = filename.split(".");
+    return parts.length > 1
+        ? parts.pop().toLowerCase()
+        : "file";
+}
+
+function formatBytes(bytes) {
+    if (!bytes) return "0 B";
+
+    const units = ["B", "KB", "MB", "GB"];
+
+    const i = Math.min(
+        Math.floor(Math.log(bytes) / Math.log(1024)),
+        units.length - 1
+    );
+
+    return (
+        (bytes / Math.pow(1024, i)).toFixed(1) +
+        " " + units[i]
+    );
+}
+
+function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+    })[char]);
+}
+
+function safeId(value) {
+    return /^[0-9a-f-]{36}$/i.test(value);
+}
+
+// UPDATED: Displays image thumbnails for photos and a clean professional app logo for APKs
+function getFileIcon(file) {
+    const ext = (file.file_type || "").toLowerCase();
+    const imageExtensions = ["jpg", "jpeg", "png", "webp", "gif", "svg"];
+
+    // If it's an image file, load and display its original thumbnail preview
+    if (imageExtensions.includes(ext)) {
+        const { data } = db.storage.from(BUCKET).getPublicUrl(file.storage_path);
+        return `<img src="${data.publicUrl}" alt="${escapeHtml(file.name)}" class="w-full h-full object-cover" />`;
+    }
+
+    // If it's an APK or Android app file, display a professional mobile app package icon logo
+    if (["apk", "app"].includes(ext)) {
+        return `
+        <svg class="w-5 h-5 text-emerald-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+            <path d="M12 18h.01"></path>
+            <path d="M10 6h4"></path>
+        </svg>`;
+    }
+
+    // Fallback icons for other file types
+    let symbol = "📄";
+
+    if (["pdf"].includes(ext)) symbol = "📕";
+    if (["zip", "rar", "7z", "tar", "gz"].includes(ext)) symbol = "📦";
+    if (["doc", "docx", "txt"].includes(ext)) symbol = "📝";
+    if (["exe"].includes(ext)) symbol = "⚙️";
+
+    return `<span class="text-base">${symbol}</span>`;
+}
+
+// ============================================
+// LOAD FILES FROM SUPABASE
+// ============================================
+
+async function loadFiles() {
+    if (!db) return;
+
+    const { data, error } = await db
+        .from(TABLE)
+        .select("*")
+        .order("created_at", { ascending: false });
+
+    if (error) {
+        console.error(error);
+        showToast("Unable to load files");
+        return;
+    }
+
+    sharedFiles = data || [];
+
+    renderFileList();
+}
+
+// ============================================
+// UPLOAD FILES
+// ============================================
+
+async function handleFileSelect(event) {
+    if (!isAdmin || uploadRunning) return;
+
+    const files = Array.from(
+        event.target.files || event.dataTransfer?.files || []
+    );
+
+    if (!files.length) return;
+
+    uploadRunning = true;
+
+    const input = document.getElementById("fileInput");
+
+    try {
+        for (const file of files) {
+            await uploadSingleFile(file);
+        }
+    } finally {
+        uploadRunning = false;
+        input.value = "";
+    }
+}
+
+async function uploadSingleFile(file) {
+    if (!isAdmin) return;
+
+    if (file.size > MAX_FILE_SIZE) {
+        showToast(file.name + " exceeds the 50 MB limit");
+        return;
+    }
+
+    const status = document.getElementById("uploadStatus");
+    const name = document.getElementById("uploadFileName");
+    const percent = document.getElementById("uploadPercent");
+    const bar = document.getElementById("uploadProgressBar");
+
+    status.classList.remove("hidden");
+    name.textContent = file.name;
+    percent.textContent = "0%";
+    bar.style.width = "0%";
+
+    let storagePath = null;
+
+    try {
+        const { data: sessionData, error: sessionError } =
+            await db.auth.getSession();
+
+        if (sessionError || !sessionData.session ||
+            sessionData.session.user.id !== ADMIN_USER_ID) {
+            throw new Error("Admin authorization required");
+        }
+
+        const cleanName = file.name
+            .replace(/[^a-zA-Z0-9._-]/g, "_")
+            .slice(0, 180);
+
+        storagePath =
+            ADMIN_USER_ID + "/" +
+            crypto.randomUUID() + "_" + cleanName;
+
+        const { error: storageError } = await db.storage
+            .from(BUCKET)
+            .upload(storagePath, file, {
+                cacheControl: "3600",
+                upsert: false,
+                contentType: file.type || "application/octet-stream"
+            });
+
+        if (storageError) throw storageError;
+
+        percent.textContent = "75%";
+        bar.style.width = "75%";
+
+        const { error: insertError } = await db
+            .from(TABLE)
+            .insert({
+                name: file.name,
+                storage_path: storagePath,
+                size: file.size,
+                file_type: getFileExtension(file.name),
+                created_by: ADMIN_USER_ID
+            });
+
+        if (insertError) throw insertError;
+
+        percent.textContent = "100%";
+        bar.style.width = "100%";
+
+        showToast(file.name + " uploaded successfully");
+
+        await loadFiles();
+
+    } catch (err) {
+        console.error(err);
+
+        if (storagePath) {
+            await db.storage.from(BUCKET).remove([storagePath]);
+        }
+
+        showToast("Upload failed: " + (err.message || "Unknown error"));
+    } finally {
+        setTimeout(() => {
+            status.classList.add("hidden");
+        }, 700);
+    }
+}
+
+// ============================================
+// DOWNLOAD FILE
+// ============================================
+
+async function downloadFile(id) {
+    if (!safeId(id)) return;
+
+    const file = sharedFiles.find(f => f.id === id);
+    if (!file) return;
+
+    try {
+        const { data } = db.storage
+            .from(BUCKET)
+            .getPublicUrl(file.storage_path);
+
+        const response = await fetch(data.publicUrl);
+
+        if (!response.ok) {
+            throw new Error("Download failed");
+        }
+
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+        link.href = objectUrl;
+        link.download = file.name;
+
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 30000);
+
+        // Download succeeded
+        if (isInstallableApp(file)) {
+            showInstallModal(file);
+        } else {
+            showToast("Download started");
+        }
+
+    } catch (err) {
+        console.error(err);
+        showToast("Unable to download file");
+    }
+}
+
+// ============================================
+// INSTALL APP MODAL (after successful download)
+// ============================================
+
+const INSTALLABLE_EXTENSIONS = ["apk", "xapk", "apks", "app"];
+let installFileId = null;
+
+function isInstallableApp(file) {
+    const ext = (file.file_type || getFileExtension(file.name)).toLowerCase();
+    return INSTALLABLE_EXTENSIONS.includes(ext);
+}
+
+function detectPlatform() {
+    const ua = navigator.userAgent || "";
+    if (/android/i.test(ua)) return "android";
+    if (/iPhone|iPad|iPod/i.test(ua)) return "ios";
+    return "desktop";
+}
+
+const INSTALL_ICONS = {
+    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+    warn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
+};
+
+function showInstallModal(file) {
+    installFileId = file.id;
+
+    const platform = detectPlatform();
+
+    document.getElementById("installFileName").textContent = file.name;
+    document.getElementById("installFileMeta").textContent =
+        formatBytes(file.size) + " · Android app";
+
+    const icon = document.getElementById("installIcon");
+    const title = document.getElementById("installTitle");
+    const subtitle = document.getElementById("installSubtitle");
+    const note = document.getElementById("installNote");
+    const steps = document.getElementById("installSteps");
+
+    let list = [];
+    let noteText = "";
+
+    icon.className = "modal-icon";
+    icon.innerHTML = INSTALL_ICONS.check;
+    note.classList.add("hidden");
+
+    if (platform === "android") {
+        title.textContent = "Download Complete";
+        subtitle.textContent = "Follow these steps to install the app on your phone.";
+
+        list = [
+            ["Open the file", "Tap the download notification, or find it in your Files / Downloads app."],
+            ["Allow installation", "If asked, turn on \"Install unknown apps\" for this browser, then go back."],
+            ["Tap Install", "Wait for it to finish, then tap Open to launch the app."]
+        ];
+
+        noteText = "Only install apps from sources you trust.";
+
+    } else if (platform === "ios") {
+        icon.className = "modal-icon warning";
+        icon.innerHTML = INSTALL_ICONS.warn;
+        title.textContent = "Android Only";
+        subtitle.textContent = "This file was downloaded, but APK apps can't be installed on iPhone or iPad.";
+
+        list = [
+            ["Use an Android phone", "Open this website on an Android device."],
+            ["Download the app there", "Tap Download, then open the file from your notifications."],
+            ["Install it", "Allow \"Install unknown apps\" if asked, then tap Install."]
+        ];
+
+    } else {
+        title.textContent = "Download Complete";
+        subtitle.textContent = "To use this app, move it to your Android phone and install it.";
+
+        list = [
+            ["Send it to your phone", "Copy the link below and open it on your phone, or transfer the file by USB / cloud."],
+            ["Open the file on your phone", "Find it in your Files / Downloads app and tap it."],
+            ["Allow and install", "Turn on \"Install unknown apps\" if asked, then tap Install."]
+        ];
+
+        noteText = "Only install apps from sources you trust.";
+    }
+
+    steps.innerHTML = list.map((item, i) => `
+        <li>
+            <span class="step-num">${i + 1}</span>
+            <span><strong>${escapeHtml(item[0])}</strong><small>${escapeHtml(item[1])}</small></span>
+        </li>
+    `).join("");
+
+    if (noteText) {
+        note.textContent = noteText;
+        note.classList.remove("hidden");
+    }
+
+    openModal("installModal");
+}
+
+function closeInstallModal() {
+    closeModal("installModal");
+}
+
+function copyInstallLink() {
+    if (installFileId) copyShareLink(installFileId);
+}
+
+// ============================================
+// COPY SHARE LINK
+// ============================================
+
+async function copyShareLink(id) {
+    if (!safeId(id)) return;
+
+    const file = sharedFiles.find(f => f.id === id);
+    if (!file) return;
+
+    const { data } = db.storage
+        .from(BUCKET)
+        .getPublicUrl(file.storage_path);
+
+    try {
+        await navigator.clipboard.writeText(data.publicUrl);
+        showToast("Download link copied");
+    } catch {
+        const input = document.createElement("textarea");
+        input.value = data.publicUrl;
+        document.body.appendChild(input);
+        input.select();
+
+        const copied = document.execCommand("copy");
+        input.remove();
+
+        showToast(copied ? "Link copied" : "Unable to copy link");
+    }
+}
+
+// ============================================
+// RENAME FILE
+// ============================================
+
+async function renameFile(id) {
+    if (!isAdmin || !safeId(id)) return;
+
+    const file = sharedFiles.find(f => f.id === id);
+    if (!file) return;
+
+    const newName = await showDialog({
+        title: "Rename File",
+        message: "Choose a new name for this file.",
+        icon: "edit",
+        inputLabel: "File name",
+        inputValue: file.name,
+        confirmText: "Save"
+    });
+
+    if (!newName || !newName.trim() || newName.trim() === file.name) return;
+
+    const { error } = await db
+        .from(TABLE)
+        .update({ name: newName.trim() })
+        .eq("id", id);
+
+    if (error) {
+        console.error(error);
+        showToast("Unable to rename file");
+        return;
+    }
+
+    await loadFiles();
+    showToast("File renamed successfully");
+}
+
+// ============================================
+// DELETE FILE
+// ============================================
+
+async function deleteFile(id) {
+    if (!isAdmin || !safeId(id)) {
+        showToast("Admin access required");
+        return;
+    }
+
+    const file = sharedFiles.find(f => f.id === id);
+
+    if (!file) {
+        showToast("File not found");
+        return;
+    }
+
+    const confirmed = await showDialog({
+        title: "Delete File?",
+        message: "\"" + file.name + "\" will be permanently removed. This can't be undone.",
+        icon: "danger",
+        danger: true,
+        confirmText: "Delete"
+    });
+
+    if (!confirmed) return;
+
+    try {
+        const { data: sessionData, error: sessionError } =
+            await db.auth.getSession();
+
+        if (sessionError) throw sessionError;
+
+        if (!sessionData.session ||
+            sessionData.session.user.id !== ADMIN_USER_ID) {
+            throw new Error("Admin authorization required");
+        }
+
+        const { error: storageError } = await db.storage
+            .from(BUCKET)
+            .remove([file.storage_path]);
+
+        if (storageError) {
+            throw new Error(
+                "Storage deletion failed: " + storageError.message
+            );
+        }
+
+        const { error: dbError } = await db
+            .from(TABLE)
+            .delete()
+            .eq("id", id);
+
+        if (dbError) {
+            throw new Error(
+                "Database deletion failed: " + dbError.message
+            );
+        }
+
+        await loadFiles();
+
+        showToast("File deleted successfully");
+
+    } catch (err) {
+        console.error("DELETE ERROR:", err);
+        showToast(err.message || "Unable to delete file");
+    }
+}
+
+// ============================================
+// RENDER FILE LIST
+// ============================================
+
+function renderFileList() {
+    const list = document.getElementById("fileList");
+    const empty = document.getElementById("emptyState");
+
+    const query = document.getElementById("searchInput")
+        .value.trim().toLowerCase();
+
+    const filtered = sharedFiles.filter(file =>
+        file.name.toLowerCase().includes(query)
+    );
+
+    document.getElementById("fileCount").textContent =
+        sharedFiles.length + " file(s) available";
+
+    if (!filtered.length) {
+        list.innerHTML = "";
+        empty.classList.remove("hidden");
+        return;
+    }
+
+    empty.classList.add("hidden");
+
+    list.innerHTML = filtered.map(file => {
+        const id = escapeHtml(file.id);
+
+        return `
+        <div class="py-3 flex items-center justify-between gap-3 group hover:bg-zinc-50 px-2 rounded-xl">
+
+            <div class="flex items-center gap-3 min-w-0">
+
+                <div class="w-9 h-9 rounded-lg bg-zinc-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    ${getFileIcon(file)}
+                </div>
+
+                <div class="min-w-0">
+                    <p class="text-xs font-medium text-zinc-900 truncate"
+                    title="${escapeHtml(file.name)}">
+                        ${escapeHtml(file.name)}
+                    </p>
+
+                    <p class="text-[11px] text-zinc-400 mt-0.5">
+                        ${formatBytes(file.size)} ·
+                        ${new Date(file.created_at).toLocaleDateString()}
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-1 flex-shrink-0">
+
+                ${isAdmin ? `
+                    <button data-action="rename" data-id="${id}"
+                    class="p-2 text-zinc-400 hover:text-zinc-800 hover:bg-zinc-100 rounded-lg"
+                    title="Rename">
+                        ✎
+                    </button>
+
+                    <button data-action="delete" data-id="${id}"
+                    class="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                    title="Delete">
+                        ×
+                    </button>
+                ` : ""}
+
+                <button data-action="share" data-id="${id}"
+                class="p-2 text-zinc-400 hover:text-zinc-800 hover:bg-zinc-100 rounded-lg"
+                title="Copy download link">
+                    🔗
+                </button>
+
+<button data-action="download" data-id="${id}"
+class="flex items-center gap-1.5 px-3 py-2
+bg-emerald-600 hover:bg-emerald-700
+text-white rounded-lg text-xs font-semibold
+shadow-sm hover:shadow-md transition-all"
+title="Download File">
+
+    <svg xmlns="http://www.w3.org/2000/svg"
+    width="16" height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2.5"
+    stroke-linecap="round"
+    stroke-linejoin="round">
+
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+
+    </svg>
+
+    <span>Download</span>
+
+</button>
+
+            </div>
+        </div>
+        `;
+    }).join("");
+}
+
+document.getElementById("fileList").addEventListener("click", event => {
+    const button = event.target.closest("button[data-action]");
+    if (!button) return;
+
+    const id = button.dataset.id;
+    const action = button.dataset.action;
+
+    if (action === "rename") renameFile(id);
+    if (action === "delete") deleteFile(id);
+    if (action === "share") copyShareLink(id);
+    if (action === "download") downloadFile(id);
+});
+
+// ============================================
+// REALTIME LIVE UPDATES
+// ============================================
+
+function subscribeToFiles() {
+    if (!db) return;
+
+    if (realtimeChannel) {
+        db.removeChannel(realtimeChannel);
+    }
+
+    realtimeChannel = db
+        .channel("shared-files-live")
+        .on(
+            "postgres_changes",
+            {
+                event: "*",
+                schema: "public",
+                table: TABLE
+            },
+            () => {
+                loadFiles();
+            }
+        )
+        .subscribe(status => {
+            const connection =
+                document.getElementById("connectionStatus");
+
+            if (status === "SUBSCRIBED") {
+                connection.textContent = "Live · Connected";
+                connection.className = "text-[10px] text-emerald-600";
+            } else if (status === "CHANNEL_ERROR" ||
+                       status === "TIMED_OUT") {
+                connection.textContent = "Live · Reconnecting";
+                connection.className = "text-[10px] text-red-500";
+            } else {
+                connection.textContent = "Connecting...";
+                connection.className = "text-[10px] text-zinc-400";
+            }
+        });
+}
+
+// ============================================
+// DRAG AND DROP
+// ============================================
+
+const dropZone = document.getElementById("dropZone");
+
+["dragenter", "dragover", "dragleave", "drop"].forEach(eventName => {
+    dropZone.addEventListener(eventName, event => {
+        event.preventDefault();
+        event.stopPropagation();
+    });
+});
+
+["dragenter", "dragover"].forEach(eventName => {
+    dropZone.addEventListener(eventName, () => {
+        dropZone.classList.add("border-zinc-500", "bg-zinc-100");
+    });
+});
+
+["dragleave", "drop"].forEach(eventName => {
+    dropZone.addEventListener(eventName, () => {
+        dropZone.classList.remove("border-zinc-500", "bg-zinc-100");
+    });
+});
+
+dropZone.addEventListener("drop", event => {
+    if (!isAdmin) {
+        showToast("Admin access required");
+        return;
+    }
+
+    handleFileSelect({
+        target: {
+            files: event.dataTransfer.files
+        }
+    });
+});
+
+// ============================================
+// INITIALIZE
+// ============================================
+
+async function initializeApp() {
+    if (!db) return;
+
+    isAdmin = false;
+    updateAdminUI();
+    await loadFiles();
+    subscribeToFiles();
+
+    db.auth.onAuthStateChange((event, session) => {
+        const authorized = !!(
+            session &&
+            session.user.id === ADMIN_USER_ID
+        );
+
+        isAdmin = authorized;
+        updateAdminUI();
+
+        if (event === "SIGNED_IN" && authorized) {
+            showToast("Admin login successful");
+        }
+
+        if (event === "SIGNED_OUT") {
+            showToast("Admin logged out");
+        }
+    });
+}
+
+initializeApp();
+</script>
+
+</body>
+</html>
